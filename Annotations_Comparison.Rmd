@@ -1,0 +1,35 @@
+---
+title: "Annotation Comparison"
+author: "Ben Weinstein"
+date: "12/16/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Load Sergio's Annotations
+
+```{r,warning=FALSE,message=FALSE}
+library(NeonTreeEvaluation)
+library(dplyr)
+library(stringr)
+
+xmls<-list.files("/Users/ben/Downloads/annotationSergio/",full.names = T)
+parsed_xmls<-lapply(xmls,xml_parse)
+sergio<-bind_rows(parsed_xmls)
+
+#Format submission
+sergio$label<-"Tree"
+
+#Strip file extentions
+sergio$plot_name <- str_match(sergio$filename,"(\\w+).tif")[,2]
+
+sergio %>% group_by(plot_name) %>% summarize(n=n())
+sergio_results<-evaluate_benchmark(sergio,project_boxes = T,show=T)
+```
+
+```{r}
+summary_statistics(sergio_results,method="all")
+summary_statistics(sergio_results,method="site")
+```
+

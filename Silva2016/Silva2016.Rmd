@@ -31,10 +31,30 @@ library(stringr)
 PATH_TO_LIDAR<-"/Users/ben/Documents/NeonTreeEvaluation/evaluation/LiDAR/"
 lidar_tiles<-list.files(full.names=TRUE,PATH_TO_LIDAR,pattern=".laz")
 results<-list()
+
+#Site params
+  site_df<-data.frame(Site=c("SJER","TEAK","NIWO","MLBS","BART","BLAN","BONA","CLBJ","DELA","DSNY","HARV","JERC","LENO","ONAQ","OSBS","SCBI","SOAP","TALL","UNDE","WREF"),Type=c("D","C","C","D","D","D","D","D","D","C","D","D","D","C","C","D","D","D","D","C"))
+parameter_df<-data.frame(Type=c("C","D"),max_cr_factor=c(0.2,0.9),exclusion=c(0.4,0.3))
+site_df<-merge(site_df,parameter_df)
+
+#Predict each tile
 for(r in lidar_tiles){
+  print(r)
   #read file
   las<-readLAS(r)
   
+  #Find site name
+  if(str_detect(r,"2018_TEAK")){
+    site="TEAK"
+  } else if(str_detect(r,"2018_SJER")){
+    site="SJER"
+  } else{
+      site=str_match(r,"(\\w+)_\\w+.laz")[,2]
+  }
+  
+  #Look up parameters
+  site_params<-site_df %>% filter(Site==site)
+
   #Canopy height model
   chm <- grid_canopy(las, res = 0.5, p2r(0.3))
   ker <- matrix(1,3,3)
@@ -43,10 +63,10 @@ for(r in lidar_tiles){
   #Tree top detection 
   ## If there are no trees, this will fail, catch error.
   try( ttops <- tree_detection(chm, lmf(4, 2)), next)
-  las   <- lastrees(las, silva2016(chm, ttops))
+  las   <- lastrees(las, silva2016(chm, ttops, max_cr_factor = site_params$max_cr_factor,exclusion = site_params$exclusion))
   
-  #extract bounding boxes
-  tree_polygons<- tree_hulls(las,type="bbox")
+  #extract bounding boxes if there are points.
+  try(tree_polygons<- tree_hulls(las,type="bbox"), next)
   
   #format bounding boxes
   bboxes<-lapply(tree_polygons@polygons,bbox)

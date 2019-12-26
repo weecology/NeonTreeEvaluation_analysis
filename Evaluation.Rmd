@@ -52,29 +52,51 @@ names(df)<-sapply(f,function(x) {str_match(x,"\\/(\\w+).csv")[,2]})
 
 For each plot compute the precision and recall based on intersection-over-union of 0.5 between the ground truth bounding boxes and the predicted boxes. 
 
-```{r}
+```{r, message=FALSE,warning=FALSE,include=FALSE}
 #Run for each method.
-#Weinstein2019_results<-Weinstein2019 %>% group_by(plot_name)  %>% do(evaluate_plot(.,show=TRUE)) %>% mutate(Method="Weinstein2019")
 
-#Silva2016_results<-Silva2016 %>% group_by(plot_name)  %>%  do(evaluate_plot(.,project_boxes=FALSE,show=TRUE)) %>%  mutate(Method="Silva2016")
+Silva2016_results<-evaluate_benchmark(df[["Silva2016"]], project_boxes=FALSE,show=FALSE) %>%  mutate(Method="Silva2016")
 
-#Dalponte2016_results<-Dalponte2016 %>% group_by(plot_name)  %>%  do(evaluate_plot(.,project_boxes=FALSE,show=TRUE)) %>%  mutate(Method="Dalponte2016")
+Dalponte2016_results<-evaluate_benchmark(df[["Dalponte2016"]], project_boxes=FALSE,show=FALSE) %>%  mutate(Method="Dalponte2016")
 
-#Li2012_results<-Li2012 %>% group_by(plot_name)  %>%  do(evaluate_plot(.,project_boxes=FALSE,show=TRUE)) %>%  mutate(Method="Li2012")
+Li2012_results<-evaluate_benchmark(df[["Li2012"]], project_boxes=FALSE,show=FALSE) %>%  mutate(Method="Li2012")
 
-#results<-bind_rows(list(Weinstein2019_results,Silva2016_results,Dalponte2016_results,Li2012_results))
-
-results<-df[["Weinstein_unpublished"]] %>% group_by(plot_name)  %>% do(evaluate_plot(.,show=TRUE)) %>% mutate(Method="Weinstein_unpublished")
-
+Weinstein2019_results<-evaluate_benchmark(df[["Weinstein2019"]], project_boxes=TRUE,show=F) %>%  mutate(Method="Weinstein2019")
 ```
 
 ```{r}
-df<-melt(results,id.vars=c("Method","plot_name"))
-ggplot(df,aes(y=value,x=variable,fill=Method)) + geom_boxplot()
+Weinstein_unpublished_results<-evaluate_benchmark(df[["Weinstein_unpublished"]], project_boxes=TRUE,show=T) %>% mutate(Method="Weinstein_unpublished")
+
+results<-bind_rows(list(Weinstein2019_results,Weinstein_unpublished_results,Silva2016_results,Dalponte2016_results,Li2012_results))
 ```
 
+## Summary Statistics
+
 ```{r}
-results %>% group_by(Method) %>% summarize(mean_precision=mean(precision),mean_recall=mean(recall))
+sum_result<-results %>% group_by(Method) %>% do(summary_statistics(.,method="all"))
+sum_result
+ggplot(sum_result) + geom_point(aes(x=recall,y=precision,col=Method,size=4))
+```
+
+```{r,include=FALSE}
+site_result<-results %>% group_by(Method) %>% do(summary_statistics(.,method="site"))
+```
+
+
+```{r}
+#order by best
+best_method<-sum_result %>% ungroup() %>% top_n(1)
+site_order<-site_result %>% filter(Method==best_method$Method) %>% arrange(recall) %>% .$Site
+
+site_result<-melt(site_result,id.vars = c("Site","Method"))
+site_result$Site<-factor(site_result$Site,levels=site_order)
+ggplot(site_result,aes(x=Site,y=value,col=Method)) + geom_point(size=2) + facet_wrap(~variable) + coord_flip()
+```
+
+# How does the bounding box uncertainty relate to IoU overlap?
+
+```{r}
+qplot(df[["Weinstein_unpublished"]]$score)
 ```
 
 
