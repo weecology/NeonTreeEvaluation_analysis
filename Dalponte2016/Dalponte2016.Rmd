@@ -27,7 +27,8 @@ library(raster)
 library(dplyr)
 library(stringr)
 #path to evaluation data, assuming Dalponte2016 folder is the working dir
-lidar_tiles<-list.files(full.names=TRUE,"../evaluation/LiDAR/",pattern=".laz")
+PATH_TO_LIDAR<-"/Users/ben/Documents/NeonTreeEvaluation/evaluation/LiDAR/"
+lidar_tiles<-list.files(full.names=TRUE,PATH_TO_LIDAR,pattern=".laz")
 results<-list()
 for(r in lidar_tiles){
   #read file
@@ -44,8 +45,8 @@ for(r in lidar_tiles){
   las   <- lastrees(las, dalponte2016(chm, ttops))
   
   #extract bounding boxes
-  tree_polygons<- tree_hulls(las,type="bbox")
-  
+  try(tree_polygons<- tree_hulls(las,type="bbox"), next)
+
   #format bounding boxes
   bboxes<-lapply(tree_polygons@polygons,bbox)
   

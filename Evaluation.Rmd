@@ -7,7 +7,6 @@ editor_options:
 ---
 
 ```{r setup, include = FALSE}
-
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -67,7 +66,7 @@ Weinstein2019_results<-evaluate_benchmark(df[["Weinstein2019"]], project_boxes=T
 ```{r}
 Weinstein_unpublished_results<-evaluate_benchmark(df[["Weinstein_unpublished"]], project_boxes=TRUE,show=T) %>% mutate(Method="Weinstein_unpublished")
 
-results<-bind_rows(list(Weinstein2019_results,Weinstein_unpublished_results,Silva2016_results,Dalponte2016_results,Li2012_results))
+results<-bind_rows(list(Weinstein2019_results,Silva2016_results,Weinstein_unpublished_results,Dalponte2016_results,Li2012_results))
 ```
 
 ## Summary Statistics
@@ -75,13 +74,12 @@ results<-bind_rows(list(Weinstein2019_results,Weinstein_unpublished_results,Silv
 ```{r}
 sum_result<-results %>% group_by(Method) %>% do(summary_statistics(.,method="all"))
 sum_result
-ggplot(sum_result) + geom_point(aes(x=recall,y=precision,col=Method,size=4))
+ggplot(sum_result) + geom_point(aes(x=recall,y=precision,col=Method),size=4)
 ```
 
 ```{r,include=FALSE}
 site_result<-results %>% group_by(Method) %>% do(summary_statistics(.,method="site"))
 ```
-
 
 ```{r}
 #order by best
@@ -93,11 +91,24 @@ site_result$Site<-factor(site_result$Site,levels=site_order)
 ggplot(site_result,aes(x=Site,y=value,col=Method)) + geom_point(size=2) + facet_wrap(~variable) + coord_flip()
 ```
 
-# How does the bounding box uncertainty relate to IoU overlap?
+# Stem recall
+
+Using the NEON woody vegetation data, what proportion of field collected stems are within a predicted tree crown. Predictions can only match one stem, if multiple stems are within the bounding box.
 
 ```{r}
-qplot(df[["Weinstein_unpublished"]]$score)
-```
+stem_recall1<-stem_detection(submission=df[["Silva2016"]],project_boxes = F,show=T) %>% mutate(Method="Silva2016")
 
+stem_recall2<-stem_detection(submission=df[["Dalponte2016"]],project_boxes = F,show=F) %>% mutate(Method="Dalponte2016")
+
+stem_recall3<-stem_detection(submission=df[["Weinstein_unpublished"]],project_boxes = T,show=F) %>% mutate(Method="Weinstein_unpublished")
+
+stem_recall4<-stem_detection(submission=df[["Li2012"]],project_boxes = F,show=F) %>% mutate(Method="Li2012")
+
+stem_recall5<-stem_detection(submission=df[["Weinstein2019"]],project_boxes = T,show=F) %>% mutate(Method="Weinstein2019")
+
+stem_recalls<-bind_rows(stem_recall1,stem_recall2,stem_recall3,stem_recall4,stem_recall5)
+
+stem_recalls %>% group_by(Method) %>% summarize(mean=mean(stem_recall,na.rm=T))
+```
 
 

@@ -14,8 +14,10 @@ library(NeonTreeEvaluation)
 library(dplyr)
 library(stringr)
 
-xmls<-list.files("/Users/ben/Downloads/annotationSergio/",full.names = T)
-parsed_xmls<-lapply(xmls,xml_parse)
+xmls<-list.files("/Users/ben/Dropbox/Weecology/Benchmark/ForStephanie/annotation_sergio",full.names = T,pattern=".xml")
+parsed_xmls<-lapply(xmls,function(x){
+  xml_parse(x)
+  })
 sergio<-bind_rows(parsed_xmls)
 
 #Format submission
