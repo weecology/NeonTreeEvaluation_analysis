@@ -7,15 +7,42 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Load Sergio's Annotations
+```{r}
+shapefile_to_annotation<-function(path, image_path){
+  #Read shapefile
+  shp<-sf::read_sf(path)
+
+  #Extract bounds
+  boxes<-lapply(shp$geometry,function(x) sf::st_bbox(x))
+  boxes<-do.call(rbind,boxes)
+  boxes<-as.data.frame(boxes)
+
+  #grab label if present
+  if ("label" %in% colnames(shp)){
+    boxes$label<-shp$label
+  } else {
+    boxes$label<-"Tree"
+  }
+
+  boxes$plot_name<-stringr::str_match(image_path,"(\\w+)\\.")[,2]
+
+  return(boxes)
+}
+```
+
+# Sergio's Annotations
 
 ```{r,warning=FALSE,message=FALSE}
 library(NeonTreeEvaluation)
 library(dplyr)
 library(stringr)
+library(ggplot2)
+library(raster)
+library(lidR)
 
 xmls<-list.files("/Users/ben/Dropbox/Weecology/Benchmark/ForStephanie/annotation_sergio",full.names = T,pattern=".xml")
 parsed_xmls<-lapply(xmls,function(x){
+  print(x)
   xml_parse(x)
   })
 sergio<-bind_rows(parsed_xmls)
@@ -27,11 +54,80 @@ sergio$label<-"Tree"
 sergio$plot_name <- str_match(sergio$filename,"(\\w+).tif")[,2]
 
 sergio %>% group_by(plot_name) %>% summarize(n=n())
-sergio_results<-evaluate_benchmark(sergio,project_boxes = T,show=T)
+
+sergio_results<-evaluate_benchmark(sergio,project_boxes = T,show=T,compute_PR = FALSE)
 ```
 
 ```{r}
-summary_statistics(sergio_results,method="all")
-summary_statistics(sergio_results,method="site")
+sergio_curve<-list()
+for(x in seq(0.3,0.6,0.05)){
+  df<-summary_statistics(sergio_results,method="all",threshold=x)
+  df$IoU_Threshold<-x
+  sergio_curve[[as.character(x)]]<-df
+}
+sergio_curve<-bind_rows(sergio_curve)
+ggplot(sergio_curve,aes(col=IoU_Threshold,x=recall,y=precision)) + geom_point(size=2) + theme_bw() + scale_color_continuous(low="blue",high = "red") + labs(col="IoU Threshold",x="Recall",y="Precision")
+ggsave("/Users/ben/Dropbox/Weecology/Benchmark/figures/PR_curve.svg")
 ```
+
+# Ecological inference on the plot level
+
+```{r}
+plotnames = unique(sergio$plot_name)
+results<-list()
+for(x in 1:length(plotnames)){
+  target_plot<-plotnames[x]
+  
+  #get RGB image
+  rgb<-stack(get_data(target_plot,"rgb"))
+  lidar<-readLAS(get_data(target_plot,"lidar"))
+
+  #Create spatial polygons for both annotators
+  boxes<-sergio %>% filter(plot_name %in% target_plot)
+  boxes<-boxes_to_spatial_polygons(boxes,rgb)
+  
+  ben<-load_ground_truth(target_plot,show=FALSE)
+  if(is.null(ben)){
+    next
+  }
+  plot(boxes,border="Red")
+  plot(ben,add=T)
+  
+  #extract heights
+  ben_lidar<-lasmergespatial(lidar,ben,attribute="crown_id")
+  ben_height = ben_lidar@data %>% group_by(crown_id) %>% summarize(mean=mean(Z))
+  
+  boxes_lidar<-lasmergespatial(lidar,boxes,attribute="crown_id")
+  boxes_height = boxes_lidar@data %>% group_by(crown_id) %>% summarize(mean=mean(Z))
+  sapply(boxes@polygons,function(x) {x@area})
+  
+  results[[x]]<-data.frame(
+    TreeCount_primary=nrow(ben),
+    TreeCount_alternative=nrow(boxes),
+    TreeHeight_primary=mean(ben_height$mean),
+    TreeHeight_alternative=mean(boxes_height$mean),
+    CrownArea_primary=mean(sapply(ben@polygons,function(x) {x@area})),
+    CrownArea_alternative=mean(sapply(boxes@polygons,function(x) {x@area}))
+    )
+}
+
+results<-bind_rows(results)
+ggplot(results,aes(x=TreeCount_primary,y=TreeCount_alternative)) + geom_point() + stat_smooth(method="lm") + geom_abline() + labs(x="Tree Count (Primary Annotator)",y="Tree Count (Alternative Annotator)") + coord_equal()
+ggsave("/Users/ben/Dropbox/Weecology/Benchmark/figures/treecount.png",dpi=300)
+
+ggplot(results,aes(x=TreeHeight_primary,y=TreeHeight_alternative)) + geom_point() + stat_smooth(method="lm") + geom_abline() + labs(x="Mean Tree Height (m) - Primary Annotator",y="Mean Tree Height (m) - Alternative Annotator") + coord_equal()
+ggsave("/Users/ben/Dropbox/Weecology/Benchmark/figures/treeheight.png",dpi=300)
+
+ggplot(results,aes(x=CrownArea_primary,y=CrownArea_alternative)) + geom_point() + stat_smooth(method="lm") + geom_abline() + labs(x="Primary Annotator",y="Alternative Annotator") + coord_equal() + ggtitle("Mean Crown Area (m^2)")
+ggsave("/Users/ben/Dropbox/Weecology/Benchmark/figures/crownarea.png",dpi=300)
+```
+
+
+# Aditya's annotations
+
+```{r}
+aditya_annotation<-shapefile_to_annotation("/Users/ben/Dropbox/Weecology/Benchmark/AdityaCrownDelineation/TALL_043_Crowns.shp",image_path = "/Users/ben/Documents/NeonTreeEvaluation/evaluation/RGB/TALL_043.tif")
+aditya_results<-evaluate_benchmark(aditya_annotation,project_boxes = F,show=T,compute_PR = FALSE)
+```
+
 
