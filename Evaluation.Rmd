@@ -60,13 +60,15 @@ For each plot compute the precision and recall based on intersection-over-union 
 
 #Li2012_results<-evaluate_benchmark(df[["Li2012"]], project_boxes=FALSE,show=FALSE) %>%  mutate(Method="Li2012")
 
-Weinstein2019_results<-evaluate_benchmark(df[["Weinstein2019"]], project_boxes=TRUE,show=F) %>%  mutate(Method="Weinstein2019")
+Weinsteinetal2020_results<-evaluate_benchmark(df[["Weinsteinetal2020"]], project_boxes=TRUE,show=F) %>%  mutate(Method="Weinsteinetal2020")
+
+CurrentModel_results<-evaluate_benchmark(df[["CurrentModel"]], project_boxes=TRUE,show=F) %>%  mutate(Method="CurrentModel")
 ```
 
 ```{r}
-Weinstein_unpublished_results<-evaluate_benchmark(df[["Weinstein_unpublished"]], project_boxes=TRUE,show=T) %>% mutate(Method="Weinstein_unpublished")
+#Weinstein_unpublished_results<-evaluate_benchmark(df[["Weinstein_unpublished"]], project_boxes=TRUE,show=T) %>% mutate(Method="Weinstein_unpublished")
 
-results<-bind_rows(list(Weinstein2019_results,Weinstein_unpublished_results))
+results<-bind_rows(list(Weinsteinetal2020_results,CurrentModel_results))
 
 #results<-bind_rows(list(Weinstein2019_results,Silva2016_results,Weinstein_unpublished_results,Dalponte2016_results,Li2012_results))
 ```
@@ -94,7 +96,8 @@ site_result$Method<-as.factor(site_result$Method)
 
 levels(site_result$Method)<-c("Current Model", "Weinstein et al. 2020")
 
-ggplot(site_result,aes(x=Site,y=value,col=Method)) + geom_point(size=2) + facet_wrap(~variable) + coord_flip()
+ggplot(site_result,aes(x=Site,y=value,col=Method)) + geom_point(size=3) + facet_wrap(~variable) + coord_flip() + theme_bw()
 ggsave("/Users/Ben/Dropbox/Weecology/DeepForest/Figures/NEON.png",height=5,width=7)
+ggsave("/Users/Ben/Dropbox/Weecology/DeepForest/Figures/NEON.svg",height=5,width=7)
 ```
 

@@ -90,32 +90,72 @@ for(x in 1:length(plotnames)){
   if(is.null(ben)){
     next
   }
-  plot(boxes,border="Red")
-  plot(ben,add=T)
+  #plotRGB(rgb)
+  #plot(boxes,border="Red",add=T)
+  #plot(ben,add=T)
   
   #extract heights
   ben_lidar<-lasmergespatial(lidar,ben,attribute="crown_id")
   ben_height = ben_lidar@data %>% group_by(crown_id) %>% summarize(mean=mean(Z))
   
+  #Extract area
   boxes_lidar<-lasmergespatial(lidar,boxes,attribute="crown_id")
   boxes_height = boxes_lidar@data %>% group_by(crown_id) %>% summarize(mean=mean(Z))
-  sapply(boxes@polygons,function(x) {x@area})
+
+  #Primary
+  maxCrownDiameter_primary<-sapply(ben@polygons,function(x){
+    rectbox<-bbox(x)
+    x=rectbox["x","max"] - rectbox["x","min"]
+    y=rectbox["y","max"] - rectbox["y","min"]
+    longest_side<-max(c(x,y))
+  })
   
+  minCrownDiameter_primary<-sapply(ben@polygons,function(x){
+  rectbox<-bbox(x)
+  x=rectbox["x","max"] - rectbox["x","min"]
+  y=rectbox["y","max"] - rectbox["y","min"]
+  shortest_side<-min(c(x,y))
+})
+
+  #Alternative
+    maxCrownDiameter_alternative<-sapply(boxes@polygons,function(x){
+    rectbox<-bbox(x)
+    x=rectbox["x","max"] - rectbox["x","min"]
+    y=rectbox["y","max"] - rectbox["y","min"]
+    longest_side<-max(c(x,y))
+  })
+    
+    minCrownDiameter_alternative<-sapply(boxes@polygons,function(x){
+  rectbox<-bbox(x)
+  x=rectbox["x","max"] - rectbox["x","min"]
+  y=rectbox["y","max"] - rectbox["y","min"]
+  shortest_side<-min(c(x,y))
+})
+    
   results[[x]]<-data.frame(
     TreeCount_primary=nrow(ben),
     TreeCount_alternative=nrow(boxes),
     TreeHeight_primary=mean(ben_height$mean),
     TreeHeight_alternative=mean(boxes_height$mean),
-    CrownArea_primary=mean(sapply(ben@polygons,function(x) {x@area})),
+    maxCrownDiameter_alternative=mean(maxCrownDiameter_alternative),
+    minCrownDiameter_alternative=mean(minCrownDiameter_alternative),
+    maxCrownDiameter_primary=mean(maxCrownDiameter_primary),
+    minCrownDiameter_primary=mean(minCrownDiameter_primary),
+  CrownArea_primary=mean(sapply(ben@polygons,function(x) {x@area})),
     CrownArea_alternative=mean(sapply(boxes@polygons,function(x) {x@area}))
     )
 }
+```
 
+```{r}
+#Average crown diagonal length of the broadest size (to be conservative)
 results<-bind_rows(results)
-ggplot(results,aes(x=TreeCount_primary,y=TreeCount_alternative)) + geom_point() + stat_smooth(method="lm") + geom_abline() + labs(x="Tree Count (Primary Annotator)",y="Tree Count (Alternative Annotator)") + coord_equal()
+ggplot(results,aes(x=TreeCount_primary,y=TreeCount_alternative)) + geom_point() + stat_smooth(method="lm") + geom_abline() + labs(x="Primary Annotator",y="Alternative Annotator") + coord_equal() + ggtitle("Tree Count")
 ggsave("/Users/ben/Dropbox/Weecology/Benchmark/figures/treecount.png",dpi=300)
+```
 
-ggplot(results,aes(x=TreeHeight_primary,y=TreeHeight_alternative)) + geom_point() + stat_smooth(method="lm") + geom_abline() + labs(x="Mean Tree Height (m) - Primary Annotator",y="Mean Tree Height (m) - Alternative Annotator") + coord_equal()
+```{r}
+ggplot(results,aes(x=TreeHeight_primary,y=TreeHeight_alternative)) + geom_point() + stat_smooth(method="lm") + geom_abline() + labs(x="Primary Annotator",y="Alternative Annotator") + coord_equal() + ggtitle("Mean Tree Height (m)")
 ggsave("/Users/ben/Dropbox/Weecology/Benchmark/figures/treeheight.png",dpi=300)
 
 ggplot(results,aes(x=CrownArea_primary,y=CrownArea_alternative)) + geom_point() + stat_smooth(method="lm") + geom_abline() + labs(x="Primary Annotator",y="Alternative Annotator") + coord_equal() + ggtitle("Mean Crown Area (m^2)")
@@ -123,11 +163,11 @@ ggsave("/Users/ben/Dropbox/Weecology/Benchmark/figures/crownarea.png",dpi=300)
 ```
 
 
-# Aditya's annotations
+<!-- # Aditya's annotations -->
 
-```{r}
-aditya_annotation<-shapefile_to_annotation("/Users/ben/Dropbox/Weecology/Benchmark/AdityaCrownDelineation/TALL_043_Crowns.shp",image_path = "/Users/ben/Documents/NeonTreeEvaluation/evaluation/RGB/TALL_043.tif")
-aditya_results<-evaluate_benchmark(aditya_annotation,project_boxes = F,show=T,compute_PR = FALSE)
-```
+<!-- ```{r} -->
+<!-- aditya_annotation<-shapefile_to_annotation("/Users/ben/Dropbox/Weecology/Benchmark/AdityaCrownDelineation/TALL_043_Crowns.shp",image_path = "/Users/ben/Documents/NeonTreeEvaluation/evaluation/RGB/TALL_043.tif") -->
+<!-- aditya_results<-evaluate_benchmark(aditya_annotation,project_boxes = F,show=T,compute_PR = FALSE) -->
+<!-- ``` -->
 
 
